@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "path": "/Users/bytedance/go-infra-playground"
+    }
+  ],
+  "settings": {
+    "go.testFlags": [
+      "-count=1"
+    ],
+    "go.toolsManagement.autoUpdate": true,
+    "editor.rulers": [
+      100
+    ]
+  }
+}
