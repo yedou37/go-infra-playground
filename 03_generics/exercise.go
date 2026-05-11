@@ -14,7 +14,10 @@ type Pair[T any] struct {
 // TODO:
 // - Preserve the same type parameter T.
 func Swap[T any](p Pair[T]) Pair[T] {
-	panic("TODO: implement Swap")
+	var res Pair[T]
+	res.First = p.Second
+	res.Second = p.First
+	return res
 }
 
 // MapSlice applies fn to each element in src and returns the mapped result.
@@ -24,7 +27,14 @@ func Swap[T any](p Pair[T]) Pair[T] {
 // - Allocate the result with the correct length.
 // - This function uses two type parameters: one for input and one for output.
 func MapSlice[T any, U any](src []T, fn func(T) U) []U {
-	panic("TODO: implement MapSlice")
+	if src == nil {
+		return nil
+	}
+	res := make([]U, len(src))
+	for i, elem := range src {
+		res[i] = fn(elem)
+	}
+	return res
 }
 
 // Last returns the last element from src.
@@ -32,5 +42,11 @@ func MapSlice[T any, U any](src []T, fn func(T) U) []U {
 // TODO:
 // - Return the zero value of T and false if src is empty.
 func Last[T any](src []T) (T, bool) {
-	panic("TODO: implement Last")
+	length := len(src)
+	var res T
+	if length == 0 {
+		return res, false
+	}
+	return src[length-1], true
+
 }
