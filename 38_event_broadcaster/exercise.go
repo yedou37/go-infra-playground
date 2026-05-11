@@ -9,9 +9,9 @@
 //
 //  1. What if a subscriber is slow?
 //     Real systems pick one of:
-//       - block the publisher (back-pressure; bad for global pipelines)
-//       - drop events for that subscriber (good for telemetry/metrics)
-//       - queue unboundedly (memory bomb; never do this)
+//     - block the publisher (back-pressure; bad for global pipelines)
+//     - drop events for that subscriber (good for telemetry/metrics)
+//     - queue unboundedly (memory bomb; never do this)
 //     This exercise picks DROP: each subscriber has its own bounded
 //     channel, and Publish performs a non-blocking send. If the buffer is
 //     full, the event is dropped FOR THAT SUBSCRIBER ONLY. Other
@@ -31,27 +31,55 @@
 //     correct.
 package broadcaster
 
+import "sync"
+
 // Broadcaster fans out values of type T to many subscribers.
 type Broadcaster[T any] struct {
 	// TODO: store subscriber channels, a closed flag, and a lock.
+	mu          sync.RWMutex
+	subscribers map[chan T]struct{}
+	isClosed    bool
 }
 
 // New returns an empty broadcaster.
 func New[T any]() *Broadcaster[T] {
-	panic("TODO: implement New")
+	return &Broadcaster[T]{
+		subscribers: make(map[chan T]struct{}),
+		isClosed:    false,
+	}
 }
 
-// Subscribe returns a new channel that will receive future Publish'd
-// values. The channel has the given buffer size. After Close(), Subscribe
-// must return an already-closed channel.
-func (b *Broadcaster[T]) Subscribe(buf int) <-chan T {
-	panic("TODO: implement Subscribe")
+// Subscribe returns a new subscriber channel that will receive future
+// Publish'd values. The channel has the given buffer size.
+//
+// For exercise simplicity this returns `chan T` instead of `<-chan T`, so
+// callers can pass the same value back into Unsubscribe without an extra
+// handle type. The broadcaster still owns the channel lifecycle: callers
+// should receive from it, but should not close it.
+//
+// After Close(), Subscribe must return an already-closed channel.
+func (b *Broadcaster[T]) Subscribe(buf int) chan T {
+	ch := make(chan T, buf)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.isClosed {
+		close(ch)
+		return ch
+	}
+	b.subscribers[ch] = struct{}{}
+	return ch
 }
 
 // Unsubscribe removes a previously-returned channel and closes it.
 // It is a no-op if ch was not registered (e.g. already removed).
-func (b *Broadcaster[T]) Unsubscribe(ch <-chan T) {
-	panic("TODO: implement Unsubscribe")
+func (b *Broadcaster[T]) Unsubscribe(ch chan T) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.subscribers[ch]; !ok {
+		return
+	}
+	delete(b.subscribers, ch)
+	close(ch)
 }
 
 // Publish delivers v to every subscriber via a non-blocking send.
@@ -59,11 +87,29 @@ func (b *Broadcaster[T]) Unsubscribe(ch <-chan T) {
 // SUBSCRIBER ONLY; other subscribers must still receive it.
 // Publish on a closed broadcaster is a silent no-op.
 func (b *Broadcaster[T]) Publish(v T) {
-	panic("TODO: implement Publish")
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.isClosed {
+		return
+	}
+	for ch := range b.subscribers {
+		select {
+		case ch <- v:
+		default:
+		}
+	}
 }
 
 // Close stops the broadcaster and closes every subscriber channel.
 // Close must be idempotent.
 func (b *Broadcaster[T]) Close() {
-	panic("TODO: implement Close")
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.isClosed {
+		return
+	}
+	for ch := range b.subscribers {
+		close(ch)
+	}
+	b.isClosed = true
 }

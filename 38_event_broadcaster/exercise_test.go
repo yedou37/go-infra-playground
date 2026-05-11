@@ -96,7 +96,7 @@ func TestCloseClosesAllSubscribers(t *testing.T) {
 	c := b.Subscribe(2)
 	b.Close()
 
-	for _, ch := range []<-chan int{a, c} {
+	for _, ch := range []chan int{a, c} {
 		select {
 		case _, ok := <-ch:
 			if ok {
