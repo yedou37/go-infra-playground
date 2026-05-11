@@ -8,7 +8,14 @@ package channels
 // - Use a buffered channel with capacity bufSize.
 // - If n <= 0, still return a closed channel.
 func StartGenerator(n, bufSize int) <-chan int {
-	panic("TODO: implement StartGenerator")
+	ch := make(chan int, bufSize)
+	go func() {
+		for i := range n {
+			ch <- i
+		}
+		close(ch)
+	}()
+	return ch
 }
 
 // Drain reads all remaining values from ch and returns them in order.
@@ -17,7 +24,11 @@ func StartGenerator(n, bufSize int) <-chan int {
 // - Accept a receive-only channel.
 // - Range over the channel until it is closed.
 func Drain(ch <-chan int) []int {
-	panic("TODO: implement Drain")
+	var res []int
+	for v := range ch {
+		res = append(res, v)
+	}
+	return res
 }
 
 // TrySend attempts to send v into ch without blocking.
@@ -27,5 +38,10 @@ func Drain(ch <-chan int) []int {
 // - Use select with default.
 // - Return true if the send succeeds.
 func TrySend(ch chan<- int, v int) bool {
-	panic("TODO: implement TrySend")
+	select {
+	case ch <- v:
+		return true
+	default:
+		return false
+	}
 }
