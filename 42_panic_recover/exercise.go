@@ -2,15 +2,15 @@
 //
 // Why this matters:
 //
-//   In Go, an unrecovered panic in ANY goroutine crashes the WHOLE
-//   process, no matter where it was started. This is one of the easiest
-//   ways to take down a production server: a single buggy callback runs
-//   in `go fn()` and the entire pod restarts.
+//	In Go, an unrecovered panic in ANY goroutine crashes the WHOLE
+//	process, no matter where it was started. This is one of the easiest
+//	ways to take down a production server: a single buggy callback runs
+//	in `go fn()` and the entire pod restarts.
 //
-//   So infra code (k8s, etcd, every serious server) wraps long-lived
-//   background goroutines in a small helper that defers a recover() and
-//   reports the panic somewhere safe (logger, metric, error channel).
-//   client-go's `runtime.HandleCrash` is exactly this idea.
+//	So infra code (k8s, etcd, every serious server) wraps long-lived
+//	background goroutines in a small helper that defers a recover() and
+//	reports the panic somewhere safe (logger, metric, error channel).
+//	client-go's `runtime.HandleCrash` is exactly this idea.
 //
 // You will implement two flavors:
 //
@@ -18,6 +18,8 @@
 //   - GoSafe(fn): run fn in a goroutine and return a channel that yields
 //     either a nil error (clean exit) or an error describing the panic.
 package safego
+
+import "fmt"
 
 // PanicHandler is invoked from within the recover() of a Go() goroutine.
 // It receives whatever was passed to panic(). If nil, panics are silently
@@ -37,7 +39,14 @@ var PanicHandler func(v any)
 //     (only if PanicHandler != nil).
 //   - Go must not block the caller waiting for fn to finish.
 func Go(fn func()) {
-	panic("TODO: implement Go")
+	go func() {
+		defer func() {
+			if v := recover(); v != nil && PanicHandler != nil {
+				PanicHandler(v)
+			}
+		}()
+		fn()
+	}()
 }
 
 // GoSafe runs fn in a new goroutine and returns a channel of size 1
@@ -50,5 +59,16 @@ func Go(fn func()) {
 // The channel must be closed after the value is sent so that the caller
 // can use range/ok semantics to detect completion.
 func GoSafe(fn func()) <-chan error {
-	panic("TODO: implement GoSafe")
+	ch := make(chan error, 1)
+	go func() {
+		defer close(ch)
+		defer func() {
+			if v := recover(); v != nil {
+				ch <- fmt.Errorf("recovered from panic: %v", v)
+			}
+		}()
+		fn()
+		ch <- nil
+	}()
+	return ch
 }
