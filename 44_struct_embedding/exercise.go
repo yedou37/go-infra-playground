@@ -36,7 +36,7 @@ type BaseLogger struct {
 //   - Implement so that subsequent Lines() returns the captured slice in
 //     insertion order.
 func (b *BaseLogger) Log(msg string) {
-	panic("TODO: implement BaseLogger.Log")
+	b.captured = append(b.captured, msg)
 }
 
 // Lines returns a defensive copy of the captured lines.
@@ -46,7 +46,9 @@ func (b *BaseLogger) Log(msg string) {
 //   - Returning the internal slice is wrong because callers could
 //     mutate it; ownership exercises in this repo cover that point.
 func (b *BaseLogger) Lines() []string {
-	panic("TODO: implement BaseLogger.Lines")
+	ret := make([]string, len(b.captured))
+	copy(ret, b.captured)
+	return ret
 }
 
 // PrefixLogger embeds *BaseLogger and prepends a fixed Prefix to every
@@ -65,7 +67,10 @@ type PrefixLogger struct {
 //   - Allocate the inner *BaseLogger so callers don't have to.
 //   - Set the prefix.
 func NewPrefixLogger(prefix string) *PrefixLogger {
-	panic("TODO: implement NewPrefixLogger")
+	return &PrefixLogger{
+		BaseLogger: &BaseLogger{},
+		Prefix:     prefix,
+	}
 }
 
 // Log overrides the promoted Log method.
@@ -75,7 +80,8 @@ func NewPrefixLogger(prefix string) *PrefixLogger {
 //   - Delegate to the embedded BaseLogger via p.BaseLogger.Log(...).
 //   - Do NOT call p.Log(...) here, that would recurse.
 func (p *PrefixLogger) Log(msg string) {
-	panic("TODO: implement PrefixLogger.Log; remember to call p.BaseLogger.Log")
+	fullMsg := p.Prefix + ": " + msg
+	p.BaseLogger.Log(fullMsg)
 }
 
 // Helper used in tests; not part of the exercise per se.
