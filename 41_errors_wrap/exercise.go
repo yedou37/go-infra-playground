@@ -17,7 +17,10 @@
 // is one of the most-used Go skills there is.
 package errwrap
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // ErrNotFound is a sentinel error that callers compare against using
 // errors.Is.
@@ -37,7 +40,10 @@ type QuotaExceeded struct {
 //   - Return a human-readable message that includes Resource, Limit and Got.
 //   - Format is not asserted by tests; any sensible string is fine.
 func (e *QuotaExceeded) Error() string {
-	panic("TODO: implement *QuotaExceeded.Error")
+	return fmt.Sprintf(
+		"quota exceeded: resource=%s limit=%d got=%d",
+		e.Resource, e.Limit, e.Got,
+	)
 }
 
 // LookupAndAnnotate returns ErrNotFound wrapped with extra context, so that
@@ -49,7 +55,10 @@ func (e *QuotaExceeded) Error() string {
 //   - Otherwise return an error of the form
 //     fmt.Errorf("lookup %q: %w", key, ErrNotFound).
 func LookupAndAnnotate(key string) error {
-	panic("TODO: implement LookupAndAnnotate")
+	if key == "" {
+		return errors.New("empty key")
+	}
+	return fmt.Errorf("lookup %q: %w", key, ErrNotFound)
 }
 
 // CheckQuota returns a wrapped *QuotaExceeded when got > limit.
@@ -62,18 +71,33 @@ func LookupAndAnnotate(key string) error {
 //   - The wrapping context should mention the resource, e.g.
 //     fmt.Errorf("admission for %s: %w", resource, qe).
 func CheckQuota(resource string, limit, got int) error {
-	panic("TODO: implement CheckQuota")
+	if got <= limit {
+		return nil
+	}
+	err := &QuotaExceeded{
+		Resource: resource,
+		Limit:    limit,
+		Got:      got,
+	}
+	return fmt.Errorf("admission for %s: %w", resource, err)
 }
 
 // IsNotFound reports whether err (or anything in its wrap chain) is
 // ErrNotFound. Implement using errors.Is — DO NOT compare strings.
 func IsNotFound(err error) bool {
-	panic("TODO: implement IsNotFound using errors.Is")
+	return errors.Is(err, ErrNotFound)
 }
 
 // AsQuotaExceeded extracts a *QuotaExceeded from err's chain.
 // Returns (nil, false) if err is nil or no such error is present.
 // Implement using errors.As — DO NOT type-switch directly.
 func AsQuotaExceeded(err error) (*QuotaExceeded, bool) {
-	panic("TODO: implement AsQuotaExceeded using errors.As")
+	if err == nil {
+		return nil, false
+	}
+	var target *QuotaExceeded
+	if !errors.As(err, &target) {
+		return nil, false
+	}
+	return target, true
 }
